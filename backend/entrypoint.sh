@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# NOTE: Do NOT use "set -e" here — we want Gunicorn to start
+# even if migrations or seeding fail.
 
 echo "========================================="
 echo "  EduSync — Container Startup"
@@ -26,36 +27,30 @@ if [ -n "${POSTGRES_PASSWORD}" ] && [ -n "${POSTGRES_USER}" ] && [ -n "${POSTGRE
     echo "✅ PostgreSQL is ready!"
 else
     echo "  ℹ️  Using DATABASE_URL (Railway mode) — skipping psql wait."
-    # Give Railway DB a moment to be reachable
     sleep 3
 fi
 
 echo ""
 echo "🔄 Running migrations..."
-python manage.py migrate --noinput
+python manage.py migrate --noinput || echo "⚠️  Migrations failed (non-fatal, continuing...)"
 
 echo ""
 echo "🌱 Seeding initial data..."
-python manage.py seed_initial_data || true
-python manage.py seed_test_users || true
+python manage.py seed_initial_data || echo "⚠️  seed_initial_data failed (non-fatal)"
+python manage.py seed_test_users || echo "⚠️  seed_test_users failed (non-fatal)"
 
 echo ""
 echo "📦 Collecting static files..."
-python manage.py collectstatic --noinput 2>/dev/null || true
+python manage.py collectstatic --noinput 2>/dev/null || echo "⚠️  collectstatic failed (non-fatal)"
 
 # Railway provides PORT dynamically. Default to 8000 for local Compose.
 export PORT="${PORT:-8000}"
 
 echo ""
-if [ "$#" -gt 0 ]; then
-    # Run user CMD if provided (e.g., from docker-compose overrides)
-    exec "$@"
-else
-    echo "🚀 Starting Gunicorn on 0.0.0.0:${PORT}..."
-    exec gunicorn edusync.wsgi:application \
-        --bind "0.0.0.0:${PORT}" \
-        --workers 3 \
-        --timeout 120 \
-        --access-logfile - \
-        --error-logfile -
-fi
+echo "🚀 Starting Gunicorn on 0.0.0.0:${PORT}..."
+exec gunicorn edusync.wsgi:application \
+    --bind "0.0.0.0:${PORT}" \
+    --workers 2 \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
