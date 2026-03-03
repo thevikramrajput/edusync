@@ -1,0 +1,51 @@
+# ─── EduSync Root .gitignore ─────────────────────────────
+
+# ─── Environment & Secrets ───────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# ─── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+venv/
+.venv/
+*.whl
+
+# ─── Django ──────────────────────────────────────────────
+db.sqlite3
+staticfiles/
+media/
+logs/
+*.log
+
+# ─── Node / Frontend ────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ─── IDE ─────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Docker ──────────────────────────────────────────────
+# Don't ignore docker-compose.yml or Dockerfile
+*.env.local
+gunicorn.*
+
+# ─── OS ──────────────────────────────────────────────────
+desktop.ini
+ehthumbs.db

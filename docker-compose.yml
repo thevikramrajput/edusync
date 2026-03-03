@@ -1,0 +1,49 @@
+services:
+  # ─── PostgreSQL 16 ────────────────────────────────────
+  db:
+    image: postgres:16
+    container_name: edusync_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: edusync_db
+      POSTGRES_USER: edusync
+      POSTGRES_PASSWORD: edusync_secure_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - edusync_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U edusync -d edusync_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ─── Django Application ───────────────────────────────
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edusync_web
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://edusync:edusync_secure_2026@db:5432/edusync_db
+      - POSTGRES_DB=edusync_db
+      - POSTGRES_USER=edusync
+      - POSTGRES_PASSWORD=edusync_secure_2026
+      - SECRET_KEY=django-insecure-edusync-dev-key-change-in-production-abc123xyz789
+      - DEBUG=True
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - FRONTEND_URL=http://localhost:3000
+      - ADMIN_URL=admin/
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  edusync_pgdata:
+    driver: local
