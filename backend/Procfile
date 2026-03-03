@@ -1,2 +1,0 @@
-web: gunicorn edusync.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 120 --access-logfile - --error-logfile -
-release: python manage.py migrate --noinput && python manage.py seed_initial_data && python manage.py collectstatic --noinput
