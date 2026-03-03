@@ -4,15 +4,17 @@ set -e
 echo "========================================="
 echo "  EduSync — Container Startup"
 echo "========================================="
-echo "  DB Host:     db"
-echo "  DB User:     ${POSTGRES_USER}"
-echo "  DB Name:     ${POSTGRES_DB}"
-echo "========================================="
 
-if [ -n "${POSTGRES_PASSWORD}" ] && [ -n "${POSTGRES_USER}" ]; then
+# ─── Wait for DB only if POSTGRES_* vars are set (Docker Compose) ────
+# On Railway, DATABASE_URL is used directly by Django/dj-database-url,
+# so we skip the psql wait and let Django handle connection.
+if [ -n "${POSTGRES_PASSWORD}" ] && [ -n "${POSTGRES_USER}" ] && [ -n "${POSTGRES_DB}" ]; then
+    DB_HOST=${DB_HOST:-db}
+    echo "  DB Host:     ${DB_HOST}"
+    echo "  DB User:     ${POSTGRES_USER}"
+    echo "  DB Name:     ${POSTGRES_DB}"
     echo ""
     echo "⏳ Waiting for PostgreSQL to accept connections..."
-    DB_HOST=${DB_HOST:-db}
     until PGPASSWORD="${POSTGRES_PASSWORD}" psql \
       -h "${DB_HOST}" \
       -U "${POSTGRES_USER}" \
@@ -22,6 +24,10 @@ if [ -n "${POSTGRES_PASSWORD}" ] && [ -n "${POSTGRES_USER}" ]; then
       sleep 2
     done
     echo "✅ PostgreSQL is ready!"
+else
+    echo "  ℹ️  Using DATABASE_URL (Railway mode) — skipping psql wait."
+    # Give Railway DB a moment to be reachable
+    sleep 3
 fi
 
 echo ""
@@ -30,7 +36,7 @@ python manage.py migrate --noinput
 
 echo ""
 echo "🌱 Seeding initial data..."
-python manage.py seed_initial_data
+python manage.py seed_initial_data || true
 python manage.py seed_test_users || true
 
 echo ""
@@ -42,10 +48,9 @@ export PORT="${PORT:-8000}"
 
 echo ""
 if [ "$#" -gt 0 ]; then
-    # Run user CMD if provided (e.g., from docker-compose overrides or Railway startCommand)
+    # Run user CMD if provided (e.g., from docker-compose overrides)
     exec "$@"
 else
-    # Default fallback
     echo "🚀 Starting Gunicorn on 0.0.0.0:${PORT}..."
     exec gunicorn edusync.wsgi:application \
         --bind "0.0.0.0:${PORT}" \
