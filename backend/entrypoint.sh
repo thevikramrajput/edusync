@@ -30,7 +30,8 @@ python manage.py migrate --noinput
 
 echo ""
 echo "🌱 Seeding initial data..."
-python manage.py seed_initial_data || true
+python manage.py seed_initial_data
+python manage.py seed_test_users || true
 
 echo ""
 echo "📦 Collecting static files..."
