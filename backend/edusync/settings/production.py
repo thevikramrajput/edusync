@@ -9,15 +9,13 @@ from .base import *  # noqa: F401, F403
 DEBUG = False
 
 # ─── HTTPS Enforcement ───────────────────────────────────
-SECURE_SSL_REDIRECT = True
+# Railway handles SSL termination at the proxy level, so we
+# do NOT redirect here — it would break CORS preflight requests.
+SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_HSTS_SECONDS = 31536000       # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_REDIRECT_EXEMPT = [
-    r"^api/v1/health/$",
-    r"^api/v1/health/live/$",
-]
 
 # ─── Cookie Security ────────────────────────────────────
 SESSION_COOKIE_SECURE = True
