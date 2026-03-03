@@ -173,9 +173,10 @@ SIMPLE_JWT = {
 }
 
 # ─── CORS ────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = config(
-    "FRONTEND_URL", default="http://localhost:3000", cast=Csv()
-)
+CORS_ALLOWED_ORIGINS = [
+    origin.rstrip("/")
+    for origin in config("FRONTEND_URL", default="http://localhost:3000", cast=Csv())
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # ─── Admin URL ───────────────────────────────────────────
