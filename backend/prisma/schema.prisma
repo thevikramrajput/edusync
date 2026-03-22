@@ -1,0 +1,219 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PRINCIPAL
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+}
+
+enum FeeStatus {
+  PAID
+  PENDING
+  PARTIAL
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          Role
+  firstName     String
+  lastName      String
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships based on role
+  teacherProfile TeacherProfile?
+  studentProfile StudentProfile?
+  parentProfile  ParentProfile?
+  
+  notifications  Notification[]
+}
+
+model TeacherProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId  String   @unique
+  department  String
+  
+  classes     Class[]  // Classes this teacher is the class teacher of
+  subjects    TeacherSubject[]
+  lecturePlans LecturePlan[]
+}
+
+model StudentProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admissionNo String   @unique
+  rollNo      Int?
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  parentId    String?
+  parent      ParentProfile? @relation(fields: [parentId], references: [id])
+  
+  attendances Attendance[]
+  marks       Mark[]
+  fees        Fee[]
+}
+
+model ParentProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address     String?
+  
+  children    StudentProfile[]
+}
+
+model Class {
+  id              String   @id @default(uuid())
+  grade           String   // e.g., "10"
+  section         String   // e.g., "A"
+  classTeacherId  String?
+  classTeacher    TeacherProfile? @relation(fields: [classTeacherId], references: [id])
+  
+  students        StudentProfile[]
+  subjects        Subject[]
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String   // e.g., "Mathematics"
+  code        String   // e.g., "MATH101"
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  
+  teachers    TeacherSubject[]
+  marks       Mark[]
+  lecturePlans LecturePlan[]
+}
+
+model TeacherSubject {
+  teacherId   String
+  subjectId   String
+  teacher     TeacherProfile @relation(fields: [teacherId], references: [id])
+  subject     Subject        @relation(fields: [subjectId], references: [id])
+
+  @@id([teacherId, subjectId])
+}
+
+model Attendance {
+  id          String   @id @default(uuid())
+  date        DateTime
+  status      AttendanceStatus
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  markedById  String   // Teacher/Admin who marked it
+  
+  @@unique([date, studentId])
+}
+
+model Mark {
+  id          String   @id @default(uuid())
+  examType    String   // e.g., "Term 1", "Unit Test 1"
+  score       Float
+  maxScore    Float
+  grade       String?  // Calculated A1-E
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  subjectId   String
+  subject     Subject @relation(fields: [subjectId], references: [id])
+  date        DateTime
+  
+  @@unique([examType, studentId, subjectId])
+}
+
+model Fee {
+  id          String   @id @default(uuid())
+  amount      Float
+  dueDate     DateTime
+  status      FeeStatus @default(PENDING)
+  amountPaid  Float    @default(0)
+  feeType     String   // e.g., "Tuition Q1", "Transport"
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LecturePlan {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   // AI generated plan
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  teacherId   String
+  teacher     TeacherProfile @relation(fields: [teacherId], references: [id])
+  date        DateTime
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  body        String
+  type        String   // "FEE_REMINDER", "ATTENDANCE_ALERT", etc.
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ConflictResolutionStatus {
+  PENDING
+  RESOLVED
+}
+
+model DataUploadJob {
+  id            String    @id @default(uuid())
+  status        JobStatus @default(PENDING)
+  totalRows     Int       @default(0)
+  processedRows Int       @default(0)
+  fileUrl       String
+  errorLog      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  conflicts     ConflictLog[]
+}
+
+model ConflictLog {
+  id             String    @id @default(uuid())
+  jobId          String
+  job            DataUploadJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rowData        Json
+  suggestedFix   Json?
+  status         ConflictResolutionStatus @default(PENDING)
+  resolutionData Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
