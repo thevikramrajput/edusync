@@ -1,0 +1,3 @@
+"""
+EduSync — Common Mixins.
+"""
